@@ -1,0 +1,563 @@
+{
+  "info": {
+    "name": "MeuCarrinho API",
+    "_postman_id": "b7f1d2a0-3c4e-4a2b-9f10-meucarrinho01",
+    "description": "All endpoints of the MeuCarrinho API (Spring Boot).\n\nBase URL defaults to http://localhost:8080 (see the `baseUrl` collection variable).\nThere is no auth yet: every call runs as the fixed `local-demo-user`.\n\n## How to validate\nRun the whole collection top to bottom (Collection Runner or `newman run`).\nRequests are ordered so state flows correctly:\n1. **Sessions** - create a session, list, read, update, duplicate.\n2. **Items** - add / edit / re-quantify an item in that session.\n3. **Item label photo** - upload a picture to S3 (LocalStack), read the presigned URL, delete it.\n4. **Account** - account statistics.\n5. **Teardown** - delete the item, complete + delete the session, delete the duplicate.\n\n`sessionId`, `itemId`, `duplicatedSessionId` and `labelPhotoKey` are captured automatically from responses into collection variables.\n\n## The upload request needs a file\n`Item label photo > Upload label photo` sends multipart form-data with a `file` part.\nA ready 1x1 PNG lives at `postman/sample-label.png`. Point Postman's working directory\nat the `postman/` folder (Settings > General > Working directory), or attach any\nJPEG/PNG/WebP up to 5 MB to the `file` key. To make your own:\n`base64 -d > label.png <<< 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "sessionId", "value": "", "type": "string" },
+    { "key": "itemId", "value": "", "type": "string" },
+    { "key": "duplicatedSessionId", "value": "", "type": "string" },
+    { "key": "labelPhotoKey", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Sessions",
+      "item": [
+        {
+          "name": "Create session",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/v1/sessions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "sessions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Compras da semana\",\n  \"storeName\": \"Supermercado Central\",\n  \"budget\": 250.00\n}"
+            },
+            "description": "Creates an ACTIVE session. `storeName` and `budget` are optional; `budget` must be >= 0 with at most 2 decimals."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Location header points at the new session', () => pm.response.to.have.header('Location'));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('sessionId', body.id);",
+                  "pm.test('starts ACTIVE with no completedAt', () => {",
+                  "  pm.expect(body.status).to.eql('ACTIVE');",
+                  "  pm.expect(body.completedAt).to.eql(null);",
+                  "});",
+                  "pm.test('derived values present', () => {",
+                  "  pm.expect(body).to.have.property('itemCount', 0);",
+                  "  pm.expect(body).to.have.property('total');",
+                  "  pm.expect(body.items).to.be.an('array').that.is.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List sessions - status=ACTIVE",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions?status=ACTIVE",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions"],
+              "query": [ { "key": "status", "value": "ACTIVE", "description": "ACTIVE or COMPLETED. Omit for every session." } ]
+            },
+            "description": "Summaries (no item list), most recent first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const list = pm.response.json();",
+                  "pm.test('array of summaries', () => pm.expect(list).to.be.an('array'));",
+                  "pm.test('all ACTIVE', () => list.forEach(s => pm.expect(s.status).to.eql('ACTIVE')));",
+                  "pm.test('summary has no items field', () => list.forEach(s => pm.expect(s).to.not.have.property('items')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List sessions - all",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/sessions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "sessions"] },
+            "description": "No `status` filter: returns every session for the current user."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get session detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}"]
+            },
+            "description": "Full detail: settings, items and derived values (itemCount, total, remainingBudget, overBudget)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('is the session we created', () => pm.expect(body.id).to.eql(pm.collectionVariables.get('sessionId')));",
+                  "pm.test('carries an items array', () => pm.expect(body.items).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update session settings",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Compras da semana (revisado)\",\n  \"storeName\": \"Atacadao\",\n  \"budget\": 300.00\n}"
+            },
+            "description": "Every field is optional; a null field is left unchanged. Only ACTIVE sessions can be updated (409 otherwise)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('name changed', () => pm.expect(pm.response.json().name).to.eql('Compras da semana (revisado)'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Duplicate session",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/duplicate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "duplicate"]
+            },
+            "description": "Creates a new ACTIVE session with fresh UUIDs, copying settings and item values (including the label photo key). Run the Items folder first if you want to see items copied."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('duplicatedSessionId', body.id);",
+                  "pm.test('new id, ACTIVE, no completedAt', () => {",
+                  "  pm.expect(body.id).to.not.eql(pm.collectionVariables.get('sessionId'));",
+                  "  pm.expect(body.status).to.eql('ACTIVE');",
+                  "  pm.expect(body.completedAt).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Items",
+      "item": [
+        {
+          "name": "Add item",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "items"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arroz 5kg\",\n  \"unitPrice\": 28.90,\n  \"quantity\": 2,\n  \"note\": \"Marca Tio Joao\"\n}"
+            },
+            "description": "Adds an item and returns the updated session detail. `name` required, `unitPrice` >= 0 (<= 2 decimals), `quantity` >= 1, `note` optional. The label photo is set separately via the label-photo endpoint."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('returns session detail with items', () => pm.expect(body.items).to.be.an('array').that.is.not.empty);",
+                  "const newest = body.items[0];",
+                  "pm.collectionVariables.set('itemId', newest.id);",
+                  "pm.test('new item has no photo yet', () => {",
+                  "  pm.expect(newest.labelPhotoKey).to.eql(null);",
+                  "  pm.expect(newest.labelPhotoUrl).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update item",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/items/{{itemId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "items", "{{itemId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arroz integral 5kg\",\n  \"unitPrice\": 32.50,\n  \"quantity\": 3,\n  \"note\": \"Troca de marca\"\n}"
+            },
+            "description": "Every field optional; null leaves the field unchanged. Session must be ACTIVE."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const it = pm.response.json().items.find(i => i.id === pm.collectionVariables.get('itemId'));",
+                  "pm.test('fields updated', () => {",
+                  "  pm.expect(it.name).to.eql('Arroz integral 5kg');",
+                  "  pm.expect(it.quantity).to.eql(3);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update item quantity",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/items/{{itemId}}/quantity",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "items", "{{itemId}}", "quantity"]
+            },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 5\n}" },
+            "description": "Focused quantity change. `quantity` is required and must be >= 1 (0 -> 400 with an `errors.quantity` entry)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const it = pm.response.json().items.find(i => i.id === pm.collectionVariables.get('itemId'));",
+                  "pm.test('quantity is 5', () => pm.expect(it.quantity).to.eql(5));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Item label photo",
+      "description": "Upload a label picture to object storage (S3 / LocalStack locally). The DB stores only the object key; responses expose a short-lived presigned URL.",
+      "item": [
+        {
+          "name": "Upload label photo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/items/{{itemId}}/label-photo",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "items", "{{itemId}}", "label-photo"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "sample-label.png",
+                  "description": "JPEG, PNG or WebP up to 5 MB. `postman/sample-label.png` is a ready 1x1 PNG - set Postman's working directory to the `postman/` folder, or attach your own file here."
+                }
+              ]
+            },
+            "description": "Multipart form-data with a single `file` part. Stores the object under `sessions/{sessionId}/items/{itemId}/{uuid}.{ext}`, persists the key on the item, and returns the key + a presigned GET URL. Replacing an existing photo deletes the previous object. Session must be ACTIVE."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK (attach a file to the `file` part if this fails)', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('labelPhotoKey', body.labelPhotoKey);",
+                  "pm.test('key is scoped to this session + item', () => {",
+                  "  pm.expect(body.labelPhotoKey).to.include('sessions/' + pm.collectionVariables.get('sessionId'));",
+                  "  pm.expect(body.labelPhotoKey).to.include('/items/' + pm.collectionVariables.get('itemId') + '/');",
+                  "});",
+                  "pm.test('presigned URL embeds the key and has an expiry', () => {",
+                  "  pm.expect(body.labelPhotoUrl).to.include(body.labelPhotoKey);",
+                  "  pm.expect(body.urlExpiresAt).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get label photo (presigned URL)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/items/{{itemId}}/label-photo",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "items", "{{itemId}}", "label-photo"]
+            },
+            "description": "Returns the key and a fresh presigned GET URL. 404 when the item has no photo. Works on completed sessions too (read-only)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('same key as uploaded', () => pm.expect(body.labelPhotoKey).to.eql(pm.collectionVariables.get('labelPhotoKey')));",
+                  "pm.test('has a presigned URL', () => pm.expect(body.labelPhotoUrl).to.be.a('string').and.to.include('http'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get session detail - item carries presigned URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}"]
+            },
+            "description": "Confirms that ordinary item responses now include `labelPhotoKey` and a ready-to-use presigned `labelPhotoUrl` for items that have a photo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const it = pm.response.json().items.find(i => i.id === pm.collectionVariables.get('itemId'));",
+                  "pm.test('item exposes key + presigned url', () => {",
+                  "  pm.expect(it.labelPhotoKey).to.eql(pm.collectionVariables.get('labelPhotoKey'));",
+                  "  pm.expect(it.labelPhotoUrl).to.be.a('string').and.to.include('http');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete label photo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/items/{{itemId}}/label-photo",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "items", "{{itemId}}", "label-photo"]
+            },
+            "description": "Removes the object from S3 and clears the key on the item. Idempotent (204 even if there was no photo). Session must be ACTIVE."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Account",
+      "item": [
+        {
+          "name": "Get account stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/me/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "me", "stats"]
+            },
+            "description": "Aggregate counts for the current user plus total recorded spending across COMPLETED sessions."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('shape', () => {",
+                  "  pm.expect(body).to.have.property('sessionCount');",
+                  "  pm.expect(body).to.have.property('completedSessionCount');",
+                  "  pm.expect(body).to.have.property('totalRecordedSpending');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Teardown",
+      "description": "Runs last so the earlier requests have something to act on. Deletes the item while the session is still ACTIVE, then completes and deletes the sessions.",
+      "item": [
+        {
+          "name": "Delete item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/items/{{itemId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "items", "{{itemId}}"]
+            },
+            "description": "Removes an item. Session must be ACTIVE (409 otherwise)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [ "pm.test('204 No Content', () => pm.response.to.have.status(204));" ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complete session",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "complete"]
+            },
+            "description": "One-way ACTIVE -> COMPLETED. A second call returns 409."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('now COMPLETED with a completedAt', () => {",
+                  "  pm.expect(body.status).to.eql('COMPLETED');",
+                  "  pm.expect(body.completedAt).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete session",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}"]
+            },
+            "description": "Deletes the session and (via ON DELETE CASCADE) its items."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [ "pm.test('204 No Content', () => pm.response.to.have.status(204));" ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete duplicated session",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{duplicatedSessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{duplicatedSessionId}}"]
+            },
+            "description": "Cleans up the copy created by `Sessions > Duplicate session`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [ "pm.test('204 No Content', () => pm.response.to.have.status(204));" ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: onias-shopping-cart-dev
+  REGION: southamerica-east1
+  SERVICE: meucarrinho-api
+  ARTIFACT_REGISTRY_REPOSITORY: meucarrinho
+  IMAGE_NAME: meucarrinho-api
+  RUNTIME_SERVICE_ACCOUNT: meucarrinho-api-runtime@onias-shopping-cart-dev.iam.gserviceaccount.com
+
+jobs:
+  build-and-deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: projects/620945202231/locations/global/workloadIdentityPools/github-actions/providers/github-meucarrinho-api
+          service_account: meucarrinho-api-deployer@onias-shopping-cart-dev.iam.gserviceaccount.com
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build image
+        env:
+          IMAGE_URI: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}
+        run: |
+          docker build \
+            --tag "${IMAGE_URI}:${GITHUB_SHA}" \
+            --tag "${IMAGE_URI}:latest" \
+            .
+
+      - name: Push image
+        env:
+          IMAGE_URI: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}
+        run: |
+          docker push "${IMAGE_URI}:${GITHUB_SHA}"
+          docker push "${IMAGE_URI}:latest"
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          region: ${{ env.REGION }}
+          service: ${{ env.SERVICE }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          env_vars: |-
+            S3_BUCKET=meucarrinho-media-215038507309-sa-east-1
+            S3_REGION=sa-east-1
+            S3_ENDPOINT=https://s3.sa-east-1.amazonaws.com
+            S3_PATH_STYLE_ACCESS=false
+            S3_AUTO_CREATE_BUCKET=false
+          secrets: |-
+            DB_URL=meucarrinho-db-url:latest
+            DB_USERNAME=meucarrinho-db-username:latest
+            DB_PASSWORD=meucarrinho-db-password:latest
+            S3_ACCESS_KEY=meucarrinho-aws-access-key-id:latest
+            S3_SECRET_KEY=meucarrinho-aws-secret-access-key:latest
+          flags: >-
+            --service-account=${{ env.RUNTIME_SERVICE_ACCOUNT }}
+            --min-instances=0
+            --max-instances=2
+
+      - name: Show service URL
+        run: echo "${{ steps.deploy.outputs.url }}"

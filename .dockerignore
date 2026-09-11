@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.vscode
+target
+*.iml
+*.log
+compose.yaml
+local
+postman
+README.md
+gha-creds-*.json
