@@ -2,12 +2,13 @@ FROM eclipse-temurin:25-jdk AS build
 
 WORKDIR /workspace
 
-COPY .mvn .mvn
-COPY mvnw pom.xml ./
-RUN chmod +x mvnw && ./mvnw -B -ntp dependency:go-offline
+COPY gradlew settings.gradle.kts build.gradle.kts ./
+COPY gradle gradle
+RUN ./gradlew --no-daemon dependencies > /dev/null
 
 COPY src src
-RUN ./mvnw -B -ntp -DskipTests package
+COPY contracts contracts
+RUN ./gradlew --no-daemon bootJar
 
 FROM eclipse-temurin:25-jre
 
@@ -15,7 +16,7 @@ WORKDIR /app
 
 RUN groupadd --system spring && useradd --system --gid spring spring
 
-COPY --from=build /workspace/target/*.jar /app/app.jar
+COPY --from=build /workspace/build/libs/*.jar /app/app.jar
 
 USER spring:spring
 

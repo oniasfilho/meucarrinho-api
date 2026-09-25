@@ -1,0 +1,16 @@
+package app.meucarrinho.application.common.port;
+
+public enum AuditAction {
+    MEMBER_JOINED,
+    MEMBER_LEFT,
+    MEMBER_REMOVED,
+    INVITATION_CREATED,
+    INVITATION_REVOKED,
+    GUEST_PASS_ISSUED,
+    GUEST_PASS_REVOKED,
+    GUEST_PASS_CLAIMED,
+    IDENTITY_LINKED,
+    IDENTITY_UNLINKED,
+    ACCOUNT_DELETED,
+    DATA_EXPORTED
+}
