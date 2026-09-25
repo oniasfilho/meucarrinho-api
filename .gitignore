@@ -1,8 +1,9 @@
-target/
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
 .idea/
 .vscode/
 *.iml
 .DS_Store
 .env
-.mvn/wrapper/maven-wrapper.jar
 gha-creds-*.json

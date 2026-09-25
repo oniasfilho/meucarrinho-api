@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "description": "Quick-add parser test vectors shared by the backend and the app (spec §11, §13). Both must turn every input into exactly the expected item, or reject it with the expected code. quantity is a decimal string; unitPrice is in centavos or null.",
+  "vectors": [
+    { "input": "2 leite 5,49", "expected": { "name": "leite", "quantity": "2", "unit": "UN", "unitPrice": 549 } },
+    { "input": "1,2 kg tomate", "expected": { "name": "tomate", "quantity": "1.2", "unit": "KG", "unitPrice": null } },
+    { "input": "cafe", "expected": { "name": "cafe", "quantity": "1", "unit": "UN", "unitPrice": null } },
+    { "input": "leite 5,49", "expected": { "name": "leite", "quantity": "1", "unit": "UN", "unitPrice": 549 } },
+    { "input": "2 leite integral", "expected": { "name": "leite integral", "quantity": "2", "unit": "UN", "unitPrice": null } },
+    { "input": "0,5kg banana 6,99", "expected": { "name": "banana", "quantity": "0.5", "unit": "KG", "unitPrice": 699 } },
+    { "input": "3 pão de queijo 12,90", "expected": { "name": "pão de queijo", "quantity": "3", "unit": "UN", "unitPrice": 1290 } },
+    { "input": "arroz R$ 24,90", "expected": { "name": "arroz", "quantity": "1", "unit": "UN", "unitPrice": 2490 } },
+    { "input": "arroz R$24", "expected": { "name": "arroz", "quantity": "1", "unit": "UN", "unitPrice": 2400 } },
+    { "input": "sabão em pó 19.9", "expected": { "name": "sabão em pó", "quantity": "1", "unit": "UN", "unitPrice": 1990 } },
+    { "input": "vitamina c 12", "expected": { "name": "vitamina c 12", "quantity": "1", "unit": "UN", "unitPrice": null } },
+    { "input": "12", "expected": { "name": "12", "quantity": "1", "unit": "UN", "unitPrice": null } },
+    { "input": "3x sabonete", "expected": { "name": "sabonete", "quantity": "3", "unit": "UN", "unitPrice": null } },
+    { "input": "2 un iogurte", "expected": { "name": "iogurte", "quantity": "2", "unit": "UN", "unitPrice": null } },
+    { "input": "  2   Leite  ", "expected": { "name": "Leite", "quantity": "2", "unit": "UN", "unitPrice": null } },
+    { "input": "1,5 leite", "error": "INVALID_QUANTITY" },
+    { "input": "0,25 kg queijo", "error": "INVALID_QUANTITY" },
+    { "input": "   ", "error": "EMPTY" }
+  ]
+}
