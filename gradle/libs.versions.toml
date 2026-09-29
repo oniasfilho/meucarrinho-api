@@ -3,6 +3,7 @@ spring-boot = "4.1.1"
 archunit = "1.5.1"
 jqwik = "1.10.1"
 jspecify = "1.0.0"
+testcontainers = "1.21.3"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -11,6 +12,12 @@ jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 assertj = { module = "org.assertj:assertj-core" }
+flyway-core = { module = "org.flywaydb:flyway-core" }
+flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
+postgresql = { module = "org.postgresql:postgresql" }
+spring-data-jdbc = { module = "org.springframework.boot:spring-boot-starter-data-jdbc" }
+testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
 jackson-databind = { module = "tools.jackson.core:jackson-databind" }
 archunit = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }

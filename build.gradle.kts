@@ -28,6 +28,10 @@ dependencies {
     testImplementation(bom)
 
     implementation(libs.spring.boot.starter)
+    implementation(libs.spring.data.jdbc)
+    implementation(libs.flyway.core)
+    implementation(libs.flyway.postgresql)
+    runtimeOnly(libs.postgresql)
     implementation(libs.jspecify)
 
     testFixturesApi(libs.jspecify)
@@ -55,6 +59,12 @@ testing {
                 implementation(testFixtures(project()))
                 implementation(platform(libs.spring.boot.bom))
                 implementation(libs.assertj)
+                implementation(libs.spring.data.jdbc)
+                implementation(libs.flyway.core)
+                implementation(libs.flyway.postgresql)
+                implementation(libs.postgresql)
+                implementation(libs.testcontainers.junit)
+                implementation(libs.testcontainers.postgresql)
             }
             targets.all {
                 testTask.configure { shouldRunAfter(test) }

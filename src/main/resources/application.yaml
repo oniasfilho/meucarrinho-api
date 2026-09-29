@@ -1,3 +1,13 @@
 spring:
   application:
     name: meucarrinho-api
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/carrinho}
+    username: ${DATABASE_USER:carrinho}
+    password: ${DATABASE_PASSWORD:}
+  flyway:
+    enabled: true
+
+carrinho:
+  adapters:
+    persistence: postgres

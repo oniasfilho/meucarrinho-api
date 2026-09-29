@@ -21,7 +21,6 @@ class PortCoverageTest {
             Map.entry("IdGenerator", "trivial"),
             Map.entry("UnitOfWork", "session 2, with the Postgres adapter"),
             Map.entry("DomainEventPublisher", "session 3, with the outbox listeners"),
-            Map.entry("ListQueries", "session 2, with the Postgres adapter"),
             Map.entry("IdentityDirectory", "session 2, with the Auth0 adapter"),
             Map.entry("Tracing", "session 2, with the OTel adapter"),
             Map.entry("PhotoStorage", "session 3, with the S3 adapter"),
