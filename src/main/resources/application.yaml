@@ -7,6 +7,13 @@ spring:
     password: ${DATABASE_PASSWORD:}
   flyway:
     enabled: true
+  aop:
+    proxy-target-class: false
+  modulith:
+    events:
+      jdbc:
+        schema-initialization:
+          enabled: false
 
 carrinho:
   adapters:

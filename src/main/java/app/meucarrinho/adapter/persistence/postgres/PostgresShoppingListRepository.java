@@ -97,10 +97,10 @@ final class PostgresShoppingListRepository implements ShoppingListRepository {
     }
 
     private List<ShoppingList> findActiveForMemberRows(AccountId member) {
-        List<UUID> ids = jdbc.query("SELECT DISTINCT l.id FROM shopping_lists l "
-                        + "LEFT JOIN shopping_list_members m ON m.list_id = l.id "
-                        + "WHERE l.status = 'ACTIVE' AND (l.owner_id = ? OR "
-                        + "(m.actor_kind = 'ACCOUNT' AND m.actor_id = ?)) "
+        List<UUID> ids = jdbc.query("SELECT l.id FROM shopping_lists l "
+                        + "WHERE l.status = 'ACTIVE' AND (l.owner_id = ? OR EXISTS ("
+                        + "SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id "
+                        + "AND m.actor_kind = 'ACCOUNT' AND m.actor_id = ?)) "
                         + "ORDER BY l.updated_at DESC, l.id DESC",
                 (rs, n) -> rs.getObject(1, UUID.class), member.value(), member.value());
         return ids.stream().map(id -> findById(new ListId(id)).orElseThrow()).toList();

@@ -29,7 +29,7 @@ dependencies {
 
     implementation(libs.spring.boot.starter)
     implementation(libs.spring.data.jdbc)
-    implementation(libs.flyway.core)
+    implementation(libs.spring.boot.starter.flyway)
     implementation(libs.flyway.postgresql)
     runtimeOnly(libs.postgresql)
     implementation(libs.jspecify)
@@ -60,6 +60,8 @@ testing {
                 implementation(platform(libs.spring.boot.bom))
                 implementation(libs.assertj)
                 implementation(libs.spring.data.jdbc)
+                implementation(libs.spring.boot.starter.test)
+                implementation(libs.spring.modulith.starter.jdbc)
                 implementation(libs.flyway.core)
                 implementation(libs.flyway.postgresql)
                 implementation(libs.postgresql)

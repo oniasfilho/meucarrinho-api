@@ -11,7 +11,12 @@ import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
-class InMemoryUnitOfWorkTest {
+class InMemoryUnitOfWorkTest implements UnitOfWorkContract {
+    @Override
+    public InMemoryUnitOfWork unitOfWork() {
+        return new InMemoryUnitOfWork();
+    }
+
     @Test
     void undoes_every_enlisted_store_when_the_work_throws() {
         var lists = new InMemoryShoppingListRepository();

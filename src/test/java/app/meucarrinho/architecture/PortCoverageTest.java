@@ -19,8 +19,6 @@ class PortCoverageTest {
     private static final Map<String, String> CONTRACT_PENDING = Map.ofEntries(
             Map.entry("Clock", "trivial"),
             Map.entry("IdGenerator", "trivial"),
-            Map.entry("UnitOfWork", "session 2, with the Postgres adapter"),
-            Map.entry("DomainEventPublisher", "session 3, with the outbox listeners"),
             Map.entry("IdentityDirectory", "session 2, with the Auth0 adapter"),
             Map.entry("Tracing", "session 2, with the OTel adapter"),
             Map.entry("PhotoStorage", "session 3, with the S3 adapter"),
@@ -107,7 +105,9 @@ class PortCoverageTest {
                 }
                 String contract = port.getSimpleName() + "Contract";
                 boolean covered = CLASSES.stream().anyMatch(test -> test.getPackageName().equals(adapter.getPackageName())
-                        && test.getAllRawSuperclasses().stream().anyMatch(s -> s.getSimpleName().equals(contract)));
+                        && (test.getAllRawSuperclasses().stream().anyMatch(s -> s.getSimpleName().equals(contract))
+                                || test.getAllRawInterfaces().stream()
+                                        .anyMatch(i -> i.getSimpleName().equals(contract))));
                 if (!covered && !CONTRACT_PENDING.containsKey(port.getSimpleName())) {
                     missing.add(adapter.getName() + " needs a test extending " + contract);
                 }

@@ -38,7 +38,8 @@ class PostgresSchemaIntegrationTest {
                     "shopping_list_items",
                     "receipts",
                     "receipt_participants",
-                    "receipt_lines");
+                    "receipt_lines",
+                    "event_publication");
             assertThat(tables).doesNotContain("invitations", "guest_passes", "change_log", "catalog_entries");
         }
     }
