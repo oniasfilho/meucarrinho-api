@@ -40,3 +40,11 @@ A misconfigured swap fails at startup with a message, not on the first request. 
 case that is not wired fails `CoreContextTest`. The required-port list is one more thing to
 update when a capability starts using a port; forgetting it still fails at injection, only
 with Spring's less specific message.
+
+## Update (3b-2): composites
+
+A port backed by a composite still has exactly one bean. The composite's configuration
+in `bootstrap` builds its members through the adapters' public static factory methods
+and does not register them, so the verifier needs no special case. The first is
+`FallbackIdempotencyStore` ([ADR 0010](0010-idempotency-keys.md)). `IdempotencyStore`
+is on the required list, selected by `carrinho.adapters.idempotency`.

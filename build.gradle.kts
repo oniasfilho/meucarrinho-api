@@ -37,6 +37,8 @@ dependencies {
     implementation(libs.flyway.postgresql)
     // The outbox for domain events (spec §4, §13); without it events never reach event_publication.
     implementation(libs.spring.modulith.starter.jdbc)
+    // Idempotency keys in Valkey/Redis through Lettuce (spec §7, ADR 0010).
+    implementation(libs.spring.boot.starter.data.redis)
     runtimeOnly(libs.postgresql)
     implementation(libs.jspecify)
 
@@ -74,6 +76,7 @@ testing {
                 implementation(libs.postgresql)
                 implementation(libs.testcontainers.junit)
                 implementation(libs.testcontainers.postgresql)
+                implementation(libs.spring.boot.starter.data.redis)
             }
             targets.all {
                 testTask.configure { shouldRunAfter(test) }

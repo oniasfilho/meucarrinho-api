@@ -43,6 +43,8 @@ class PostgresUnitOfWorkAndOutboxIntegrationTest implements UnitOfWorkContract, 
         properties.add("spring.datasource.password", POSTGRES::getPassword);
         properties.add("spring.modulith.events.jdbc.schema-initialization.enabled", () -> false);
         properties.add("spring.aop.proxy-target-class", () -> false);
+        // No Valkey here: the composite and its Redis member have their own tests (ADR 0010).
+        properties.add("carrinho.adapters.idempotency", () -> "postgres");
     }
 
     @Autowired

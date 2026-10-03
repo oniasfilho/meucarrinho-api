@@ -6,10 +6,12 @@ import app.meucarrinho.bootstrap.TestActor;
 import app.meucarrinho.domain.shared.AccountId;
 import app.meucarrinho.domain.shared.DisplayName;
 import app.meucarrinho.domain.shared.ExternalRef;
+import jakarta.servlet.Filter;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.client.MockMvcClientHttpRequestFactory;
@@ -20,7 +22,7 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
 /**
- * Web tests: real controllers, use cases and fakes, no server and no Docker. {@link #client} builds the typed Java
+ * Web tests: real controllers, filters, use cases and fakes, no server and no Docker. {@link #client} builds the typed Java
  * client from the same API interfaces the controllers implement (spec §3); {@link #http} sends raw requests when a
  * test needs to see status codes and problem bodies.
  */
@@ -41,7 +43,10 @@ public abstract class RestTest {
 
     @BeforeEach
     void connect() {
-        MockMvc mvc = MockMvcBuilders.webAppContextSetup(context).build();
+        Filter[] filters = context.getBeansOfType(Filter.class).values().stream()
+                .sorted(AnnotationAwareOrderComparator.INSTANCE)
+                .toArray(Filter[]::new);
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(filters).build();
         http = MockMvcTester.create(mvc);
         RestClient rest = RestClient.builder()
                 .requestFactory(new MockMvcClientHttpRequestFactory(mvc))

@@ -6,6 +6,7 @@ import app.meucarrinho.application.accounts.port.AccountRepository;
 import app.meucarrinho.application.common.port.Clock;
 import app.meucarrinho.application.common.port.DomainEventPublisher;
 import app.meucarrinho.application.common.port.IdGenerator;
+import app.meucarrinho.application.common.port.IdempotencyStore;
 import app.meucarrinho.application.common.port.UnitOfWork;
 import app.meucarrinho.application.lists.ActiveListsService;
 import app.meucarrinho.application.lists.FinishPurchaseService;
@@ -31,6 +32,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class CoreConfiguration {
     private static final String PERSISTENCE = "carrinho.adapters.persistence";
+    private static final String IDEMPOTENCY = "carrinho.adapters.idempotency";
 
     @Bean
     static PortBeanVerifier portBeanVerifier() {
@@ -41,6 +43,7 @@ class CoreConfiguration {
         required.put(ListQueries.class, PERSISTENCE);
         required.put(UnitOfWork.class, PERSISTENCE);
         required.put(DomainEventPublisher.class, PERSISTENCE);
+        required.put(IdempotencyStore.class, IDEMPOTENCY);
         required.put(Clock.class, CoreConfiguration.class.getSimpleName());
         required.put(IdGenerator.class, CoreConfiguration.class.getSimpleName());
         return new PortBeanVerifier(required);

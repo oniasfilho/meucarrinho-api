@@ -157,6 +157,14 @@ class ArchitectureTest {
             .that().areAnnotatedWith("org.springframework.boot.autoconfigure.SpringBootApplication")
             .should().resideInAPackage("app.meucarrinho.bootstrap..");
 
+    @ArchTest
+    static final ArchRule redis_only_in_its_adapter = vendorOnlyIn(
+            "org.springframework.data.redis..", "..adapter.idempotency.redis..", "app.meucarrinho.bootstrap..");
+
+    @ArchTest
+    static final ArchRule lettuce_only_in_the_redis_adapter = vendorOnlyIn(
+            "io.lettuce..", "..adapter.idempotency.redis..");
+
     private static ArchRule vendorOnlyIn(String vendorPackage, String... allowedPackages) {
         return noClasses()
                 .that().resideOutsideOfPackages(allowedPackages)

@@ -14,11 +14,11 @@ backs the persistence ports.
 | 2. `SpringTransactionUnitOfWork`, Modulith outbox publisher | done | 16f8ce0 |
 | Fix: Modulith JDBC starter on the main runtime classpath | done | a93da09 |
 | 3a. If-Match in use cases, `ListActiveLists`, `GetAccount`, core wiring | done | 690ac6a |
-| 3b-1. REST surface, If-Match parsing, `/swagger-ui` | done | `feat(api)` after 5b2bffa |
-| 3b-2. Idempotency store, Redis and Postgres adapters, HTTP filter | next | |
+| 3b-1. REST surface, If-Match parsing, `/swagger-ui` | done | d322179 |
+| 3b-2. Idempotency store, Redis and Postgres adapters, HTTP filter | done | `feat(idempotency)` after d322179 |
 | 4–9. Error contract, auth, telemetry, operations, DX, handoff | not started | |
 
-**After 3b-2, resume at session 2, step 4 (error contract).** Session 3 starts only after
+**Resume at session 2, step 4 (error contract).** Session 3 starts only after
 step 9.
 
 Local notes:
@@ -51,7 +51,7 @@ From the session prompt:
    - A composite in `bootstrap` that tries Redis first and falls back to Postgres.
    - The HTTP filter lives in `bootstrap`.
    - Config key: `carrinho.adapters.idempotency`.
-   - ADR comes in 3b-2.
+   - Built in 3b-2; see [ADR 0010](docs/adr/0010-idempotency-keys.md).
 5. Not in session 2: `GET /v1/me/capabilities` (session 4) and the file-backed flags
    adapter (session 3). `CapabilityService` is not wired. `GET /v1/me` has no
    capabilities field; adding it later is compatible under §13.
@@ -122,6 +122,39 @@ Built in 3b-1 (all conventions in [ADR 0009](docs/adr/0009-rest-conventions.md))
   - `client(Api.class)` returns the typed client; `http` is a `MockMvcTester`.
   - The context is shared, so a test must never assume empty stores.
 
+Built in 3b-2 (all decisions in [ADR 0010](docs/adr/0010-idempotency-keys.md)):
+
+- **Port.** `IdempotencyStore` in `application.common.port` with `claim`, `lookup`,
+  `complete` and `release`. A claim holds the key for a 60 s lease; a completed response
+  is kept 24 h. The fake is `InMemoryIdempotencyStore` (it has `goDown()` and
+  `comeBack()`), and the contract is `IdempotencyStoreContract`.
+- **Adapters.** `adapter.idempotency.redis` (Lettuce, `SET NX PX`) and
+  `adapter.idempotency.postgres` (table `idempotency_keys`, migration V3). Both pass the
+  contract on Testcontainers.
+- **Selection.** `carrinho.adapters.idempotency` is `redis`, `postgres` or
+  `redis-postgres`. The default, `redis-postgres`, is
+  `bootstrap.FallbackIdempotencyStore`: it builds both members through the adapters'
+  static `create` methods, so the port keeps one bean (ADR 0007 update).
+  `spring.data.redis.url` defaults to `${REDIS_URL:redis://localhost:6379}`.
+- **Filter.** `bootstrap.IdempotencyFilter` handles keyed POST, PUT, PATCH and DELETE
+  under `/v1/` for signed-in callers:
+  - Only 2xx responses are stored, and a replay carries `Idempotent-Replayed: true`.
+  - New codes: `409 IDEMPOTENCY_REQUEST_IN_PROGRESS`, `409 IDEMPOTENCY_KEY_REUSED`, and
+    `503 DEPENDENCY_UNAVAILABLE` when no store answers.
+  - Problems render through the MVC exception resolvers.
+- **Tests.**
+  - `RestTest` now adds every servlet filter to MockMvc.
+  - `@InMemoryApplicationTest` sets `idempotency=memory` and turns off Redis
+    auto-configuration.
+  - `PostgresUnitOfWorkAndOutboxIntegrationTest` uses `idempotency=postgres`.
+  - `IdempotencyWiringIntegrationTest` boots the default wiring on Postgres and Valkey.
+- **Explain-back answer** ("What stops a retried POST from creating two items?"): the
+  filter claims `(account, Idempotency-Key)` before the use case runs and stores the 2xx
+  response. The retry, with the same fingerprint, gets that response replayed and never
+  reaches `QuickAddItem`. `IdempotencyFilterTest` shows it.
+- **Step 4 must add** the `Idempotency-Key` header and the three codes above to the
+  OpenAPI document.
+
 ## Open questions for later steps
 
 - **Step 5.** The Notion checkpoint expects "another user's list gets 403 NOT_A_MEMBER".
@@ -141,6 +174,14 @@ Built in 3b-1 (all conventions in [ADR 0009](docs/adr/0009-rest-conventions.md))
 - Auth0 is not proven against a real tenant.
 - The management port 8081 clashes with the Expo web dev server (decision 8).
 - NullAway is not wired in yet.
+- Lettuce keeps its default timeouts (connect 10 s, command 60 s) by the user's choice
+  for the development stage. A Valkey that dies while connected stalls each keyed write
+  until the command timeout before the PostgreSQL fallback answers. Set short timeouts
+  or add a circuit breaker before production (step 7).
+- Expired `idempotency_keys` rows are only reused, never purged. Add the purge job in
+  step 7.
+- The `api` service in `compose.yaml` sets neither `DATABASE_URL` nor `REDIS_URL`, so
+  `make up` cannot reach Postgres or Valkey yet (step 8, DX).
 - The Cloud Run workflow deploys `main` on every push (see ADR 0001 before merging).
 
 ---

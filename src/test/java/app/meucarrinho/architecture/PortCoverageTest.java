@@ -59,7 +59,8 @@ class PortCoverageTest {
                 "EntitlementRepository", "ListQueries", "ChangeLog", "UnitOfWork", "IdentityDirectory",
                 "GuestPassStore", "FeatureFlags", "CatalogSource", "EmailSender", "PushSender", "PhotoStorage",
                 "ListChangeBroadcaster", "PresenceTracker", "ProductAnalytics", "BusinessMetrics", "Tracing",
-                "PaymentGateway", "BillingEventSource", "Clock", "IdGenerator", "DomainEventPublisher", "AuditTrail");
+                "PaymentGateway", "BillingEventSource", "Clock", "IdGenerator", "DomainEventPublisher", "AuditTrail",
+                "IdempotencyStore");
     }
 
     @Test

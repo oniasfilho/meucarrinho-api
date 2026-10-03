@@ -7,6 +7,10 @@ spring:
     password: ${DATABASE_PASSWORD:}
   flyway:
     enabled: true
+  data:
+    redis:
+      # Valkey from compose.yaml (spec §14); idempotency keys live here first (ADR 0010).
+      url: ${REDIS_URL:redis://localhost:6379}
   aop:
     proxy-target-class: false
   modulith:
@@ -23,3 +27,4 @@ springdoc:
 carrinho:
   adapters:
     persistence: postgres
+    idempotency: redis-postgres   # redis | postgres | redis-postgres (Redis, PostgreSQL when Redis is down)
