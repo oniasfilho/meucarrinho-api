@@ -9,11 +9,6 @@ class ApiConfigurationTest {
     private final ApiConfiguration configuration = new ApiConfiguration();
 
     @Test
-    void until_step_5_no_request_has_an_actor() {
-        assertThat(configuration.currentActor().account()).isEmpty();
-    }
-
-    @Test
     void the_rest_layer_reads_the_cores_clock() {
         Instant now = Instant.parse("2026-10-03T12:00:00Z");
 

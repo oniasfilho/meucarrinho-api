@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import app.meucarrinho.api.rest.RestTest;
 import app.meucarrinho.domain.account.SortOrder;
 import app.meucarrinho.domain.shared.AccountId;
+import app.meucarrinho.domain.shared.ExternalRef;
+import java.util.UUID;
 import app.meucarrinho.testfixtures.TestIds;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 
 class MeApiTest extends RestTest {
     @Test
@@ -36,5 +39,35 @@ class MeApiTest extends RestTest {
         actor.signOut();
         assertThat(http.get().uri("/v1/me")).hasStatus(HttpStatus.UNAUTHORIZED)
                 .bodyJson().extractingPath("$.code").isEqualTo("UNAUTHENTICATED");
+    }
+
+    @Test
+    void the_first_sign_in_creates_the_account_and_later_ones_refresh_it() {
+        actor.signInWithoutAccount(new ExternalRef("auth0", "new-user|" + UUID.randomUUID()));
+        MeApi api = client(MeApi.class);
+
+        MeResponse created = api.upsert(new UpsertMeRequest("Tia Rosa", "rosa@example.com"));
+        MeResponse again = api.upsert(new UpsertMeRequest("Rosa", null));
+
+        assertThat(created.displayName()).isEqualTo("Tia Rosa");
+        assertThat(again.id()).isEqualTo(created.id());
+        assertThat(again.displayName()).isEqualTo("Rosa");
+    }
+
+    @Test
+    void sign_in_needs_a_token_and_a_valid_name() {
+        assertThat(http.put().uri("/v1/me").contentType(MediaType.APPLICATION_JSON).content("{\"displayName\":\"Rosa\"}"))
+                .hasStatus(HttpStatus.UNAUTHORIZED);
+
+        actor.signInWithoutAccount(new ExternalRef("auth0", "new-user|" + UUID.randomUUID()));
+        assertThat(http.get().uri("/v1/me")).hasStatus(HttpStatus.UNAUTHORIZED)
+                .bodyJson().extractingPath("$.message").asString().contains("PUT /v1/me");
+        assertThat(http.put().uri("/v1/me").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+                .bodyJson().extractingPath("$.errors[0].field").isEqualTo("displayName");
+        assertThat(http.put().uri("/v1/me").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"displayName\":\"Rosa\",\"email\":\"not-an-email\"}"))
+                .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+                .bodyJson().extractingPath("$.errors[0].field").isEqualTo("email");
     }
 }

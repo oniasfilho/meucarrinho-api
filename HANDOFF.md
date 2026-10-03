@@ -15,10 +15,12 @@ backs the persistence ports.
 | Fix: Modulith JDBC starter on the main runtime classpath | done | a93da09 |
 | 3a. If-Match in use cases, `ListActiveLists`, `GetAccount`, core wiring | done | 690ac6a |
 | 3b-1. REST surface, If-Match parsing, `/swagger-ui` | done | d322179 |
-| 3b-2. Idempotency store, Redis and Postgres adapters, HTTP filter | done | `feat(idempotency)` after d322179 |
+| 3b-2. Idempotency store, Redis and Postgres adapters, HTTP filter | done | 395dd9e |
+| DX. Local sign-in (mock-oauth2), `PUT /v1/me`, demo seed, `make run`/`token`, Postman | done (ahead of steps 5 and 8) | `feat(dx)` after ac11866 |
 | 4–9. Error contract, auth, telemetry, operations, DX, handoff | not started | |
 
-**Resume at session 2, step 4 (error contract).** Session 3 starts only after
+**Resume at session 2, step 4 (error contract).** Steps 5 and 8 are partly done; see
+[ADR 0011](docs/adr/0011-local-sign-in-and-demo-data.md) for what they still owe. Session 3 starts only after
 step 9.
 
 Local notes:
@@ -26,7 +28,7 @@ Local notes:
 - `build/` holds files owned by root from a run on 2026-09-29, so `make test` cannot
   clean it. Run `sudo chown -R "$USER" build` once.
 - `target/` is a leftover from the old Maven build, now in `.gitignore`.
-- How to run the project today: [RUNNING.md](RUNNING.md).
+- How to run and try the project: [RUNNING.md](RUNNING.md) (`make run`, `make token`, Postman).
 
 ## Decisions agreed in session 2 (do not ask again)
 
@@ -87,11 +89,10 @@ From step 3a (details in ADRs 0006 and 0007):
 
 For step 3b:
 
-- **Actor before step 5.** Controllers get the account from a `CurrentActor` interface in
-  `api.rest`. Until step 5, the only production implementation (in `bootstrap`) has no
-  actor, so every endpoint answers 401 `UNAUTHENTICATED`. Web tests supply their own.
-  There is no dev header and no back door. Step 5 replaces the bootstrap implementation
-  with one built on the verified token and `GetAccount.byIdentity`.
+- **Actor.** Controllers get the account from a `CurrentActor` interface in `api.rest`.
+  Web tests supply their own. There is no dev header and no back door. (Superseded by
+  ADR 0011: the bootstrap implementation is now `TokenActor`, built on the verified
+  token and `GetAccount.byIdentity`.)
 - **Minimal error mapping.** Controllers turn each `Result` error into a status and a
   stable `code` through one small `@RestControllerAdvice` in `api.rest`. Step 4 grows it
   into the full §13 contract (`requestId`, `traceId`, field errors, hostile input).
@@ -154,6 +155,27 @@ Built in 3b-2 (all decisions in [ADR 0010](docs/adr/0010-idempotency-keys.md)):
 - **Step 4 must add** the `Idempotency-Key` header and the three codes above to the
   OpenAPI document.
 
+Built for hands-on testing, ahead of steps 5 and 8 (see
+[ADR 0011](docs/adr/0011-local-sign-in-and-demo-data.md)):
+
+- **Tokens.** Bearer JWTs are verified by the resource server against mock-oauth2 locally:
+  issuer, audience `carrinho-api`, signature and expiry.
+- **Caller.** `bootstrap.TokenActor` replaces the 401-only actor: the token subject
+  becomes `ExternalRef("auth0", sub)` and then the account. `CurrentActor` has
+  `identity()`.
+- **New endpoint.** `PUT /v1/me` creates or refreshes the caller's account.
+- **Seed.** `DemoSeed` (`carrinho.seed.enabled=true`) loads marina, jessica and onias
+  through the use cases.
+- **Commands and collection.** `make deps`, `make run` and `make token user=<name>`, plus
+  `postman/meucarrinho-api.postman_collection.json`.
+- **Environment variables.** They are now `CARRINHO_DATABASE_URL`,
+  `CARRINHO_DATABASE_USER`, `CARRINHO_DATABASE_PASSWORD`, `CARRINHO_REDIS_URL`,
+  `CARRINHO_AUTH_ISSUER_URI` and `CARRINHO_AUTH_AUDIENCE`.
+- **Tests.**
+  - `TestActor.signInAs(identity, account)` and `signInWithoutAccount(identity)`.
+  - `TokenActorTest`, `DemoSeedTest`, and the new `MeApiTest` cases.
+  - `TokenSignInIntegrationTest` signs in with a real mock-oauth2 token over HTTP.
+
 ## Open questions for later steps
 
 - **Step 5.** The Notion checkpoint expects "another user's list gets 403 NOT_A_MEMBER".
@@ -179,8 +201,9 @@ Built in 3b-2 (all decisions in [ADR 0010](docs/adr/0010-idempotency-keys.md)):
   or add a circuit breaker before production (step 7).
 - Expired `idempotency_keys` rows are only reused, never purged. Add the purge job in
   step 7.
-- The `api` service in `compose.yaml` sets neither `DATABASE_URL` nor `REDIS_URL`, so
-  `make up` cannot reach Postgres or Valkey yet (step 8, DX).
+- The `api` service in `compose.yaml` passes neither the `CARRINHO_DATABASE_URL`,
+  `CARRINHO_REDIS_URL` nor `CARRINHO_AUTH_ISSUER_URI` settings, so `make up` cannot reach
+  its dependencies yet. `make run` is the way to run locally (step 8, DX).
 - The Cloud Run workflow deploys `main` on every push (see ADR 0001 before merging).
 
 ---

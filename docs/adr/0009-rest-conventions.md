@@ -76,3 +76,8 @@ Step 4 extends the same advice with `requestId`, `traceId`, the hostile-input te
 `500 INTERNAL`, so no controller changes. Step 5 replaces one bean in `bootstrap`. Every
 code above is part of the contract the apps will branch on. Renaming one after the
 OpenAPI file is published is a breaking change.
+
+## Update (2026-10-03)
+
+The 401-only `CurrentActor` is gone. Bearer tokens are verified now, with mock-oauth2
+locally, and still without a back door. See [ADR 0011](0011-local-sign-in-and-demo-data.md).

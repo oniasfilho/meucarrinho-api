@@ -39,6 +39,8 @@ dependencies {
     implementation(libs.spring.modulith.starter.jdbc)
     // Idempotency keys in Valkey/Redis through Lettuce (spec §7, ADR 0010).
     implementation(libs.spring.boot.starter.data.redis)
+    // Bearer tokens from Auth0, or from mock-oauth2 locally (spec §6, §14).
+    implementation(libs.spring.boot.starter.oauth2.resource.server)
     runtimeOnly(libs.postgresql)
     implementation(libs.jspecify)
 

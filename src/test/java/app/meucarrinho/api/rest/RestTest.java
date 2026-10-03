@@ -60,11 +60,11 @@ public abstract class RestTest {
         return clients.createClient(api);
     }
 
-    /** Provisions a fresh account, as PUT /v1/me will in step 5, and makes it the caller. */
+    /** Provisions a fresh account, as PUT /v1/me does after sign-in, and makes it the caller. */
     protected AccountId signIn(String name) {
-        AccountId id = accounts.upsert(new ExternalRef("test", name + "|" + UUID.randomUUID()), new DisplayName(name),
-                Optional.empty()).orElseThrow().id();
-        actor.signInAs(id);
+        ExternalRef identity = new ExternalRef("test", name + "|" + UUID.randomUUID());
+        AccountId id = accounts.upsert(identity, new DisplayName(name), Optional.empty()).orElseThrow().id();
+        actor.signInAs(identity, id);
         return id;
     }
 }

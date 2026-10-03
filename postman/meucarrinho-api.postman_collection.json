@@ -1,0 +1,999 @@
+{
+  "info": {
+    "name": "Meu Carrinho API (local)",
+    "_postman_id": "5b0c0a52-3c1e-4f0a-9d9e-6a1f2b3c4d5e",
+    "description": "Local testing against `make run` (API on :8080, demo seed, mock-oauth2 on :8090).\n\nSign-in is automatic: the collection's pre-request script asks mock-oauth2 for a token for the `user` collection variable (marina, jessica or onias from the seed; any other name is a brand-new user who must call **Me › Sign up / refresh (PUT /v1/me)** first). Change `user` to switch people.\n\nList writes need `If-Match`; the collection's test script copies each response's ETag into `etag`, and the last list and item you touched into `listId` and `itemId`. Start with **Lists › Active lists**, then **Lists › Get list**.\n\nSee RUNNING.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Fetches a token from mock-oauth2 for {{user}} whenever none is held, it expired, or {{user}} changed.",
+          "const user = pm.variables.get('user');",
+          "const expiresAt = Number(pm.collectionVariables.get('tokenExpiresAt') || 0);",
+          "if (pm.collectionVariables.get('token') && pm.collectionVariables.get('tokenUser') === user && Date.now() < expiresAt) {",
+          "    return;",
+          "}",
+          "pm.sendRequest({",
+          "    url: pm.variables.get('authUrl') + '/default/token',",
+          "    method: 'POST',",
+          "    header: { 'Content-Type': 'application/x-www-form-urlencoded' },",
+          "    body: { mode: 'urlencoded', urlencoded: [",
+          "        { key: 'grant_type', value: 'client_credentials' },",
+          "        { key: 'client_id', value: user },",
+          "        { key: 'client_secret', value: 'local' },",
+          "        { key: 'scope', value: 'carrinho-api' }",
+          "    ] }",
+          "}, (err, res) => {",
+          "    if (err || res.code !== 200) {",
+          "        console.error('No token from mock-oauth2. Is it running? Try `make deps`.', err || res.text());",
+          "        return;",
+          "    }",
+          "    const body = res.json();",
+          "    pm.collectionVariables.set('token', body.access_token);",
+          "    pm.collectionVariables.set('tokenUser', user);",
+          "    pm.collectionVariables.set('tokenExpiresAt', String(Date.now() + (body.expires_in - 60) * 1000));",
+          "});"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Keeps {{etag}} and {{listId}} on the last list you touched, and {{itemId}} on the last item you added.",
+          "const etag = pm.response.headers.get('ETag');",
+          "if (etag) { pm.collectionVariables.set('etag', etag); }",
+          "let body = null;",
+          "try { body = pm.response.json(); } catch (e) { body = null; }",
+          "if (body && Array.isArray(body.items) && body.version !== undefined) {",
+          "    pm.collectionVariables.set('listId', body.id);",
+          "    const path = pm.request.url.getPath();",
+          "    const added = pm.request.method === 'POST' && (/\\/items$/.test(path) || /\\/items\\/[^/]+\\/duplicate$/.test(path));",
+          "    const unset = !pm.collectionVariables.get('itemId') || !body.items.some(i => i.id === pm.collectionVariables.get('itemId'));",
+          "    if ((added || (unset && pm.request.method === 'GET')) && body.items.length) {",
+          "        pm.collectionVariables.set('itemId', body.items[body.items.length - 1].id);",
+          "    }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "authUrl",
+      "value": "http://localhost:8090"
+    },
+    {
+      "key": "user",
+      "value": "marina"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "tokenUser",
+      "value": ""
+    },
+    {
+      "key": "tokenExpiresAt",
+      "value": "0"
+    },
+    {
+      "key": "listId",
+      "value": ""
+    },
+    {
+      "key": "itemId",
+      "value": ""
+    },
+    {
+      "key": "receiptId",
+      "value": ""
+    },
+    {
+      "key": "etag",
+      "value": ""
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "postman-retry-demo-1"
+    },
+    {
+      "key": "retryEtag",
+      "value": ""
+    },
+    {
+      "key": "retryEtagKey",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Me",
+      "item": [
+        {
+          "name": "Who am I",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sign up / refresh (PUT /v1/me)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Tia Rosa\",\n  \"email\": \"rosa@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Only for a `user` that is not in the seed (marina, jessica, onias already have accounts): creates the account for the token's identity. Calling it again refreshes the name and e-mail."
+          }
+        },
+        {
+          "name": "Change preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/me/preferences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "me",
+                "preferences"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sortOrder\": \"AZ\",\n  \"haptics\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Lists",
+      "item": [
+        {
+          "name": "Active lists",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists?status=active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "active"
+                }
+              ]
+            },
+            "description": "Home cards. Sets {{listId}} to the first card."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.lists && b.lists.length) { pm.collectionVariables.set('listId', b.lists[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create list",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Feira de quarta\",\n  \"store\": \"Feira livre\",\n  \"budget\": {\n    \"minorUnits\": 8000,\n    \"currency\": \"BRL\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Rename / change store or budget",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Feira de quinta\",\n  \"store\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Absent fields are kept, null clears, a value sets."
+          }
+        },
+        {
+          "name": "Duplicate list",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/duplicate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "duplicate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete list",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Restore list",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "restore"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Items",
+      "item": [
+        {
+          "name": "Quick-add item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "items"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"2 leite 5,49\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Same grammar as the app's quick-add bar: \"2 leite 5,49\", \"1,2 kg tomate\", \"arroz R$ 24,90\"."
+          }
+        },
+        {
+          "name": "Add item with fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "items"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"tomate\",\n  \"quantity\": {\n    \"amount\": 1.2,\n    \"unit\": \"KG\"\n  },\n  \"unitPrice\": {\n    \"minorUnits\": 890,\n    \"currency\": \"BRL\"\n  },\n  \"note\": \"maduros\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Add item, retry-safe (fixed Idempotency-Key)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{retryEtag}}",
+                "description": "Pinned the first time a given {{idempotencyKey}} is sent, so the retry is the identical request."
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "items"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"2 manga 3,50\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Send it twice: the second response is replayed (header Idempotent-Replayed: true) and no second item is created. If-Match is pinned per key, so the retry is the identical request. For a fresh demo, change {{idempotencyKey}}."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const key = pm.collectionVariables.get('idempotencyKey');",
+                  "if (pm.collectionVariables.get('retryEtagKey') !== key) {",
+                  "    pm.collectionVariables.set('retryEtag', pm.collectionVariables.get('etag'));",
+                  "    pm.collectionVariables.set('retryEtagKey', key);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit item",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/items/{{itemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "items",
+                "{{itemId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unitPrice\": {\n    \"minorUnits\": 599,\n    \"currency\": \"BRL\"\n  },\n  \"note\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Remove item",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/items/{{itemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "items",
+                "{{itemId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Restore item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/items/{{itemId}}/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "items",
+                "{{itemId}}",
+                "restore"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Duplicate item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/items/{{itemId}}/duplicate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "items",
+                "{{itemId}}",
+                "duplicate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Return item (unpick)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/items/{{itemId}}/picked",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "items",
+                "{{itemId}}",
+                "picked"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"picked\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Pick item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/items/{{itemId}}/picked",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "items",
+                "{{itemId}}",
+                "picked"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"picked\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Checkout",
+      "item": [
+        {
+          "name": "Finish purchase",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/finish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "finish"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Needs at least one picked item (run Items › Pick item first). Sets {{receiptId}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b && b.id) { pm.collectionVariables.set('receiptId', b.id); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Receipts",
+      "item": [
+        {
+          "name": "History (newest first)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/receipts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "receipts"
+              ]
+            },
+            "description": "Pages of 6 months; follow nextCursor with ?cursor=. Sets {{receiptId}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "const first = (b.months || []).flatMap(m => m.receipts)[0];",
+                  "if (first) { pm.collectionVariables.set('receiptId', first.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Monthly totals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/receipts/summary?from=2026-01&to=2026-12",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "receipts",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Receipt detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/receipts/{{receiptId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "receipts",
+                "{{receiptId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Shop again",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/receipts/{{receiptId}}/shop-again",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "receipts",
+                "{{receiptId}}",
+                "shop-again"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "New active list from the receipt."
+          }
+        },
+        {
+          "name": "Import items from last receipt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}",
+                "description": "Version from the last list response (ETag). Collection scripts keep {{etag}} current."
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lists/{{listId}}/items:import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lists",
+                "{{listId}}",
+                "items:import"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Copies the items of your latest receipt into {{listId}} (after Shop again, that is the new list); send {\"receiptId\": \"...\"} for a specific one."
+          }
+        }
+      ]
+    }
+  ]
+}

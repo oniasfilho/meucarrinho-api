@@ -2,15 +2,23 @@ spring:
   application:
     name: meucarrinho-api
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/carrinho}
-    username: ${DATABASE_USER:carrinho}
-    password: ${DATABASE_PASSWORD:}
+    # CARRINHO_-prefixed so a generic DATABASE_URL from another project cannot leak in.
+    url: ${CARRINHO_DATABASE_URL:jdbc:postgresql://localhost:5432/carrinho}
+    username: ${CARRINHO_DATABASE_USER:carrinho}
+    password: ${CARRINHO_DATABASE_PASSWORD:}
   flyway:
     enabled: true
   data:
     redis:
       # Valkey from compose.yaml (spec §14); idempotency keys live here first (ADR 0010).
-      url: ${REDIS_URL:redis://localhost:6379}
+      url: ${CARRINHO_REDIS_URL:redis://localhost:6379}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # mock-oauth2 from compose.yaml locally (spec §14); the Auth0 tenant in staging and prod.
+          issuer-uri: ${CARRINHO_AUTH_ISSUER_URI:http://localhost:8090/default}
+          audiences: ${CARRINHO_AUTH_AUDIENCE:carrinho-api}
   aop:
     proxy-target-class: false
   modulith:

@@ -1,93 +1,110 @@
-# Running the project (as of session 2, step 3b-2)
+# Running the project
 
-A quick guide to what runs today. Session 2, step 8 replaces it with the spec §14 quick
-start (`make up`, `make seed`, `make token`).
+How to run the API on your machine and try it by hand with Postman or curl, with demo
+data and real sign-in tokens. Session 2, step 8 folds this into the spec §14 quick start.
 
 ## Prerequisites
 
-- Docker, for Postgres and Valkey and for the integration tests.
+- Docker.
 - Any JDK 17+ to start Gradle. Gradle downloads the Java 25 toolchain if it's missing.
 
-## 1. Run the tests
+## 1. Start the API with demo data
 
 ```bash
-make test   # about 260 unit, use-case, web and ArchUnit tests on in-memory fakes, ~10 s, no Docker
-make it     # about 55 integration tests on Testcontainers (Postgres 17, Valkey 8), ~1.5 min
+make run
+```
+
+This does two things:
+
+1. Starts Postgres, Valkey and mock-oauth2 (a local sign-in server standing in for Auth0)
+   with Docker Compose.
+2. Runs the API on http://localhost:8080 with `carrinho.seed.enabled=true`.
+
+On first start, Flyway creates the schema and the demo seed loads through the real use
+cases. The log says `Demo seed: created marina, jessica, onias`. Later starts skip people
+who already exist, so restarting never duplicates data. Stop with Ctrl+C.
+
+| Who | What they have |
+|---|---|
+| `marina` | "Feira de domingo" (budget R$ 120, 1 item picked); "Churrasco sábado" (over budget); one receipt, "Mercado do mês" |
+| `jessica` | "Compras da semana" (her own list for now); one receipt, "Padaria" |
+| `onias` | "Farmácia" (budget R$ 80) |
+
+## 2. Get a token
+
+```bash
+make token                 # Marina
+make token user=jessica
+make token user=rosa       # someone new: call PUT /v1/me first to create the account
+```
+
+It prints a JWT that is valid for one hour. Send it as `Authorization: Bearer <token>`.
+
+## 3. Postman
+
+Import `postman/meucarrinho-api.postman_collection.json`.
+
+- **Sign-in is automatic.** Before each request, the collection fetches a token for its
+  `user` variable (default `marina`). Change `user` to switch people.
+- **Folders follow a trip:**
+  1. Me
+  2. Lists
+  3. Items
+  4. Checkout
+  5. Receipts
+- **For a seeded user, start with *Lists › Active lists*.** It sets `listId`.
+- **For a new user:** run *Me › Sign up / refresh* first.
+- **List writes need `If-Match`.** The collection copies each response's `ETag` into
+  `etag`, and the list and item you last touched into `listId` and `itemId`, so you can
+  click through in order.
+- **To see idempotency at work,** send *Items › Add item, retry-safe* twice. The second
+  response carries `Idempotent-Replayed: true`, and no second item is created.
+
+Swagger UI (http://localhost:8080/swagger-ui) lists every endpoint, but it doesn't sign
+in for you: paste a token from `make token` into **Authorize**.
+
+## 4. curl
+
+```bash
+TOKEN=$(make -s token user=marina)
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/v1/me
+curl -s -H "Authorization: Bearer $TOKEN" 'http://localhost:8080/v1/lists?status=active'
+```
+
+## 5. Tests
+
+```bash
+make test   # ~260 unit, use-case, web and ArchUnit tests on in-memory fakes, ~10 s, no Docker
+make it     # ~57 integration tests on Testcontainers (Postgres, Valkey, mock-oauth2), ~2 min
 ```
 
 If Gradle fails with `Unable to delete directory build/test-results`, root owns files in
 `build/` from an old run. Fix it once with `sudo chown -R "$USER" build`.
 
-## 2. Run the API on your machine
+## Configuration
 
-Start the two services the API needs:
+Every value has a local default, so none of these is needed with `make run`.
 
-```bash
-docker compose up -d --wait postgres valkey
-```
-
-Then start the API. **Your shell exports `DATABASE_URL` for another project (Neon), and
-`application.yaml` reads the same variable.** Leave it out of this process:
-
-```bash
-env -u DATABASE_URL ./gradlew bootRun
-```
-
-Otherwise startup fails with `'url' must start with "jdbc"`. To point at another
-database on purpose, set a JDBC URL, for example
-`DATABASE_URL=jdbc:postgresql://localhost:5432/carrinho`.
-
-On start, Flyway applies migrations V1–V3 to the local `carrinho` database, and the API
-listens on port 8080.
-
-| What | Where |
-|---|---|
-| Swagger UI | http://localhost:8080/swagger-ui |
-| OpenAPI JSON | http://localhost:8080/v3/api-docs |
-| Postgres | `localhost:5432`, database and user `carrinho`, no password (trust auth, local only) |
-| Valkey | `localhost:6379` |
-
-Stop the API with Ctrl+C. Then stop or wipe the services:
-
-```bash
-docker compose stop postgres valkey   # keep the data
-docker compose down -v                # wipe the volumes
-```
-
-## 3. What to expect
-
-- **Every `/v1` endpoint answers `401 UNAUTHENTICATED`.** Authentication comes in
-  session 2, step 5, and there is deliberately no dev header or back door. You can browse
-  the API in Swagger, but you can't call it successfully yet.
-- To see the endpoints work end to end, read and run the web tests. They sign in a test
-  user and call the real controllers on the fakes:
-  - `src/test/java/app/meucarrinho/api/rest/lists/ItemsApiTest.java`
-  - `src/test/java/app/meucarrinho/bootstrap/IdempotencyFilterTest.java` (retries with
-    `Idempotency-Key`)
-
-  Run one with `./gradlew test --tests '*IdempotencyFilterTest'`.
-- There is no seed data and no `make token` yet (step 8).
-
-## 4. Configuration you may want to change
-
-| Key (env var) | Default | Notes |
+| Env var | Default | |
 |---|---|---|
-| `spring.datasource.url` (`DATABASE_URL`) | `jdbc:postgresql://localhost:5432/carrinho` | Must be a JDBC URL |
-| `spring.datasource.username` / `password` (`DATABASE_USER` / `DATABASE_PASSWORD`) | `carrinho` / empty | |
-| `spring.data.redis.url` (`REDIS_URL`) | `redis://localhost:6379` | |
-| `carrinho.adapters.persistence` | `postgres` | `memory` only in tests |
-| `carrinho.adapters.idempotency` | `redis-postgres` | `redis`, `postgres`, or Redis with PostgreSQL fallback |
+| `CARRINHO_DATABASE_URL` | `jdbc:postgresql://localhost:5432/carrinho` | Must be a JDBC URL |
+| `CARRINHO_DATABASE_USER` / `CARRINHO_DATABASE_PASSWORD` | `carrinho` / empty | |
+| `CARRINHO_REDIS_URL` | `redis://localhost:6379` | |
+| `CARRINHO_AUTH_ISSUER_URI` | `http://localhost:8090/default` | mock-oauth2; the Auth0 tenant in staging and prod |
+| `CARRINHO_AUTH_AUDIENCE` | `carrinho-api` | Tokens for any other audience get 401 |
+| `CARRINHO_ADAPTERS_IDEMPOTENCY` | `redis-postgres` | Or `postgres` to run without Valkey |
 
-To run without Valkey, set the idempotency store to Postgres only:
+The variables carry a `CARRINHO_` prefix, so a generic `DATABASE_URL` exported for another
+project can't break startup.
 
-```bash
-env -u DATABASE_URL CARRINHO_ADAPTERS_IDEMPOTENCY=postgres ./gradlew bootRun
-```
+To stop or wipe the services: `make down` (keeps data) or
+`docker compose --profile offline down -v` (wipes it).
 
 ## Not working yet
 
-- **`make up` (the API in Docker):** the `api` service in `compose.yaml` doesn't set
-  `DATABASE_URL` or `REDIS_URL` yet, so it can't reach Postgres or Valkey (step 8).
-- **Port 8081:** management and actuator don't exist yet (step 7).
-- **Missing services:** Grafana, Mailpit, MinIO and mock-oauth2 are in `compose.yaml`,
-  but nothing uses them yet.
+- **`make up` (the API in Docker):** the `api` service in `compose.yaml` doesn't pass the
+  database, Redis or issuer settings yet (step 8). Use `make run`.
+- **Shared lists:** "Compras da semana" isn't shared with Marina and Onias, because
+  joining a list needs invitations (session 3).
+- **Receipt dates:** seed receipts are dated today, not August and September 2026.
+- **Management port:** port 8081 and the actuator don't exist yet (step 7).

@@ -10,12 +10,15 @@ database, identity provider, e-mail service or telemetry tool sits behind a port
 - Why: [`docs/adr`](docs/adr)
 - House rules for LLM sessions: [`AGENTS.md`](AGENTS.md)
 
-## Running the tests
+## Running it
 
-Prerequisite: any JDK 17+ to start Gradle; the Java 25 toolchain is downloaded if missing.
+Prerequisites: Docker, and any JDK 17+ to start Gradle (the Java 25 toolchain is
+downloaded if missing). Details, demo users and the Postman collection:
+[`RUNNING.md`](RUNNING.md).
 
 ```bash
-make test   # unit, use-case and architecture tests with in-memory fakes; no Docker
-make it     # integration tests on Testcontainers (from session 2)
-make up     # the local stack from compose.yaml (the API joins in session 2)
+make run                 # Postgres, Valkey and mock-oauth2 in Docker, then the API on :8080 with demo data
+make token user=marina   # a sign-in token for Postman or curl
+make test                # unit, use-case, web and architecture tests with in-memory fakes; no Docker
+make it                  # integration tests on Testcontainers
 ```
