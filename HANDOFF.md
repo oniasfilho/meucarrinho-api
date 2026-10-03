@@ -25,9 +25,8 @@ Local notes:
 
 - `build/` holds files owned by root from a run on 2026-09-29, so `make test` cannot
   clean it. Run `sudo chown -R "$USER" build` once.
-- `compose.yaml` and `docs/spec.md` carry uncommitted edits by the user (MinIO image
-  switched to `pgsty/minio`). Leave them out of commits unless asked.
-- `target/` is an untracked leftover. Ignore it.
+- `target/` is a leftover from the old Maven build, now in `.gitignore`.
+- How to run the project today: [RUNNING.md](RUNNING.md).
 
 ## Decisions agreed in session 2 (do not ask again)
 
