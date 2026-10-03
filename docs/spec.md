@@ -889,7 +889,7 @@ open http://localhost:8025              # Mailpit: every e-mail the app sends
 | `api` (profile `full`) | Built from the repo | 8080, management 8081 | Production API; all three roles in one process |
 | `postgres` | `postgres:17` | 5432 | Production database; migrations run automatically on start |
 | `valkey` | `valkey/valkey:8` | 6379 | Redis: presence, rate limits, idempotency keys |
-| `minio` and `minio-init` | `minio/minio`, `minio/mc` | 9000, console 9001 | S3; the init container creates the private `photos` bucket |
+| `minio` and `minio-init` | `pgsty/minio` (server and `mc`; the official images were withdrawn) | 9000, console 9001 | S3; the init container creates the private `photos` bucket |
 | `otel-lgtm` | `grafana/otel-lgtm` | OTLP 4317/4318, Grafana 3000 | The OTel Collector plus Tempo, Prometheus and Loki behind Grafana in one container, matching the production Grafana setup |
 | `mailpit` | `axllent/mailpit` | SMTP 1025, UI 8025 | E-mail vendor; the local `EmailSender` adapter speaks SMTP |
 | `mock-oauth2` (profile `offline`) | `ghcr.io/navikt/mock-oauth2-server` | 8090 | Auth0, when you have no network or no tenant access |

@@ -40,9 +40,8 @@ services:
       interval: 2s
       timeout: 5s
       retries: 30
-
   minio:
-    image: minio/minio
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: carrinho
@@ -59,7 +58,7 @@ services:
       retries: 30
 
   minio-init:
-    image: minio/mc
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     depends_on:
       minio: { condition: service_healthy }
     entrypoint:
