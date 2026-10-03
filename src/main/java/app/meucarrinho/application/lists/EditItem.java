@@ -9,5 +9,6 @@ import app.meucarrinho.domain.shared.ListId;
 import app.meucarrinho.domain.shared.Result;
 
 public interface EditItem {
-    Result<ShoppingList, ListError> edit(ListId list, ActorRef actor, ItemId itemId, ItemChanges changes);
+    Result<ShoppingList, ListError> edit(ListId list, ActorRef actor, long expectedVersion, ItemId itemId,
+            ItemChanges changes);
 }

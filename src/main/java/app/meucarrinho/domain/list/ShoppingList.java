@@ -110,6 +110,11 @@ public final class ShoppingList {
                 Optional.empty()));
     }
 
+    /** The If-Match check: a write based on any other version than the stored one is refused. */
+    public Result<@Nullable Void, ListError> requireVersion(long expectedVersion) {
+        return expectedVersion == version ? Result.ok() : Result.err(new ListError.VersionConflict(id, version));
+    }
+
     public Result<@Nullable Void, ListError> updateDetails(ActorRef actor, ListDetailsChange change, Instant now) {
         return guard(actor, MANAGE).flatMap(ok -> requireActive()).map(ok -> {
             boolean wasOver = totals().overBudget();

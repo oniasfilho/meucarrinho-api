@@ -62,18 +62,19 @@ public final class ListService implements CreateShoppingList, GetShoppingList, U
     }
 
     @Override
-    public Result<ShoppingList, ListError> update(ListId id, ActorRef actor, ListDetailsChange change) {
-        return tx.change(id, list -> list.updateDetails(actor, change, clock.now()));
+    public Result<ShoppingList, ListError> update(ListId id, ActorRef actor, long expectedVersion,
+            ListDetailsChange change) {
+        return tx.change(id, actor, expectedVersion, list -> list.updateDetails(actor, change, clock.now()));
     }
 
     @Override
-    public Result<ShoppingList, ListError> delete(ListId id, ActorRef actor) {
-        return tx.change(id, list -> list.delete(actor, clock.now()));
+    public Result<ShoppingList, ListError> delete(ListId id, ActorRef actor, long expectedVersion) {
+        return tx.change(id, actor, expectedVersion, list -> list.delete(actor, clock.now()));
     }
 
     @Override
-    public Result<ShoppingList, ListError> restore(ListId id, ActorRef actor) {
-        return tx.change(id, list -> list.restore(actor, clock.now()));
+    public Result<ShoppingList, ListError> restore(ListId id, ActorRef actor, long expectedVersion) {
+        return tx.change(id, actor, expectedVersion, list -> list.restore(actor, clock.now()));
     }
 
     @Override

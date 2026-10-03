@@ -19,7 +19,7 @@ class PortCoverageTest {
     private static final Map<String, String> CONTRACT_PENDING = Map.ofEntries(
             Map.entry("Clock", "trivial"),
             Map.entry("IdGenerator", "trivial"),
-            Map.entry("IdentityDirectory", "session 2, with the Auth0 adapter"),
+            Map.entry("IdentityDirectory", "session 4, with the Auth0 Management API adapter"),
             Map.entry("Tracing", "session 2, with the OTel adapter"),
             Map.entry("PhotoStorage", "session 3, with the S3 adapter"),
             Map.entry("EmailSender", "session 3, with the SMTP adapter"),

@@ -48,15 +48,19 @@ public final class ReceiptReuseService implements ShopAgain, ImportItemsFromRece
     }
 
     @Override
-    public Result<ShoppingList, ListError> importItems(ListId listId, AccountId actor, Optional<ReceiptId> receiptId) {
+    public Result<ShoppingList, ListError> importItems(ListId listId, AccountId actor, long expectedVersion,
+            Optional<ReceiptId> receiptId) {
+        ActorRef importer = ActorRef.account(actor);
+        return tx.change(listId, importer, expectedVersion, list -> sourceReceipt(actor, receiptId)
+                .flatMap(receipt -> list.importFrom(importer, receipt, ids::newItemId, clock.now())));
+    }
+
+    private Result<Receipt, ListError> sourceReceipt(AccountId actor, Optional<ReceiptId> receiptId) {
         Optional<Receipt> receipt = receiptId.isPresent()
                 ? receipts.findVisible(receiptId.get(), actor)
                 : receipts.latestVisibleTo(actor);
-        if (receipt.isEmpty()) {
-            return Result.err(receiptId.<ListError>map(ListError.ReceiptNotFound::new)
-                    .orElseGet(ListError.NoPastPurchase::new));
-        }
-        return tx.change(listId, list -> list.importFrom(ActorRef.account(actor), receipt.get(), ids::newItemId,
-                clock.now()));
+        return receipt.<Result<Receipt, ListError>>map(Result::ok)
+                .orElseGet(() -> Result.err(receiptId.<ListError>map(ListError.ReceiptNotFound::new)
+                        .orElseGet(ListError.NoPastPurchase::new)));
     }
 }

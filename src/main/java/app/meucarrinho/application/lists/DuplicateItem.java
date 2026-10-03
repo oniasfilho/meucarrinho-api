@@ -9,5 +9,6 @@ import app.meucarrinho.domain.shared.Result;
 import java.util.Optional;
 
 public interface DuplicateItem {
-    Result<ShoppingList, ListError> duplicate(ListId list, ActorRef actor, ItemId source, Optional<ItemId> newItemId);
+    Result<ShoppingList, ListError> duplicate(ListId list, ActorRef actor, long expectedVersion, ItemId source,
+            Optional<ItemId> newItemId);
 }

@@ -10,5 +10,6 @@ import app.meucarrinho.domain.shared.Result;
 import java.util.Optional;
 
 public interface AddItem {
-    Result<ShoppingList, ListError> add(ListId list, ActorRef actor, Optional<ItemId> itemId, ItemDraft draft);
+    Result<ShoppingList, ListError> add(ListId list, ActorRef actor, long expectedVersion, Optional<ItemId> itemId,
+            ItemDraft draft);
 }

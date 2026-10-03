@@ -44,7 +44,7 @@ class ShoppingTripScenarioTest {
                 Optional.of(Budget.brl(50_00)))).orElseThrow();
 
         for (String text : List.of("2 leite 5,49", "cafe 18,90", "arroz R$ 24,90", "1,2 kg tomate 8,90", "pao")) {
-            list = core.items.quickAdd(list.id(), me, Optional.empty(), text).orElseThrow();
+            list = core.items.quickAdd(list.id(), me, list.version(), Optional.empty(), text).orElseThrow();
         }
         assertThat(list.activeItems()).extracting(item -> item.name().value())
                 .containsExactly("leite", "cafe", "arroz", "tomate", "pao");
@@ -56,12 +56,12 @@ class ShoppingTripScenarioTest {
         assertThat(list.totals().unpricedCount()).isEqualTo(1);
 
         core.clock.advance(Duration.ofHours(1));
-        list = core.items.pick(list.id(), me, item(list, "leite").id()).orElseThrow();
-        list = core.items.pick(list.id(), me, item(list, "cafe").id()).orElseThrow();
+        list = core.items.pick(list.id(), me, list.version(), item(list, "leite").id()).orElseThrow();
+        list = core.items.pick(list.id(), me, list.version(), item(list, "cafe").id()).orElseThrow();
         assertThat(list.totals().remainingBudget()).contains(Money.brl(50_00 - 29_88));
         assertThat(core.events.published(DomainEvent.BudgetExceeded.class)).isEmpty();
 
-        list = core.items.pick(list.id(), me, item(list, "arroz").id()).orElseThrow();
+        list = core.items.pick(list.id(), me, list.version(), item(list, "arroz").id()).orElseThrow();
         ListTotals totals = list.totals();
         assertThat(totals.pickedTotal()).isEqualTo(Money.brl(54_78));
         assertThat(totals.overBudget()).isTrue();
@@ -71,7 +71,7 @@ class ShoppingTripScenarioTest {
                 .satisfies(e -> assertThat(e.pickedTotal()).isEqualTo(Money.brl(54_78)));
 
         core.clock.advance(Duration.ofMinutes(20));
-        Receipt receipt = core.finishPurchase.finish(list.id(), me, Optional.empty()).orElseThrow();
+        Receipt receipt = core.finishPurchase.finish(list.id(), me, list.version(), Optional.empty()).orElseThrow();
         assertThat(receipt.lines()).extracting(line -> line.name().value()).containsExactly("leite", "cafe", "arroz");
         assertThat(receipt.total()).isEqualTo(Money.brl(54_78));
         assertThat(receipt.budgetDelta()).contains(Money.brl(-4_78));
@@ -81,7 +81,7 @@ class ShoppingTripScenarioTest {
         ShoppingList finished = core.lists.get(list.id(), me).orElseThrow();
         assertThat(finished.status()).isEqualTo(ListStatus.COMPLETED);
         assertThat(finished.activeItems()).hasSize(5);
-        assertThat(core.items.pick(list.id(), me, item(finished, "tomate").id()).errorOrThrow())
+        assertThat(core.items.pick(list.id(), me, finished.version(), item(finished, "tomate").id()).errorOrThrow())
                 .isEqualTo(new ListError.ListNotActive(list.id(), ListStatus.COMPLETED));
 
         assertThat(core.receipts.get(receipt.id(), marina.id()).orElseThrow()).isEqualTo(receipt);
@@ -102,7 +102,7 @@ class ShoppingTripScenarioTest {
         assertThat(again.activeItems()).noneMatch(Item::picked);
         assertThat(again.totals().estimatedTotal()).isEqualTo(receipt.lines().stream()
                 .map(ReceiptLine::subtotal).reduce(Money.ZERO, Money::plus));
-        assertThat(core.listQueries.activeCards(marina.id())).extracting(card -> card.id()).containsExactly(again.id());
+        assertThat(core.activeLists.activeLists(marina.id())).extracting(card -> card.id()).containsExactly(again.id());
 
         assertThat(core.unitOfWork.rollbacks()).isZero();
         assertThat(core.events.published(DomainEvent.ListCreated.class)).hasSize(1);

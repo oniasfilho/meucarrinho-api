@@ -320,6 +320,18 @@ class ShoppingListTest {
         }
     }
 
+    @Nested
+    class Versions {
+        @Test
+        void a_stale_version_is_refused_with_the_current_revision() {
+            ShoppingList list = ShoppingList.rehydrate(list(Optional.empty()).snapshot().withVersion(3));
+
+            assertThat(list.requireVersion(2).errorOrThrow()).isEqualTo(new ListError.VersionConflict(list.id(), 3));
+            assertThat(list.requireVersion(4).errorOrThrow()).isEqualTo(new ListError.VersionConflict(list.id(), 3));
+            assertThat(list.requireVersion(3).isOk()).isTrue();
+        }
+    }
+
     @Test
     void a_snapshot_rebuilds_the_same_list() {
         ShoppingList list = list(Optional.of(Budget.brl(30_00)));

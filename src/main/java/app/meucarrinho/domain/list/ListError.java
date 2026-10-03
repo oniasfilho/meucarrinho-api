@@ -25,6 +25,8 @@ public sealed interface ListError {
 
     record ListIdTaken(ListId listId) implements ListError {}
 
+    record VersionConflict(ListId listId, long currentRevision) implements ListError {}
+
     record InvalidItem(String code) implements ListError {}
 
     record ReceiptNotFound(ReceiptId receiptId) implements ListError {}

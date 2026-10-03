@@ -9,5 +9,6 @@ import app.meucarrinho.domain.shared.Result;
 import java.util.Optional;
 
 public interface QuickAddItem {
-    Result<ShoppingList, ListError> quickAdd(ListId list, ActorRef actor, Optional<ItemId> itemId, String text);
+    Result<ShoppingList, ListError> quickAdd(ListId list, ActorRef actor, long expectedVersion, Optional<ItemId> itemId,
+            String text);
 }

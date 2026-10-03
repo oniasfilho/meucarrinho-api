@@ -1,7 +1,9 @@
 package app.meucarrinho.testfixtures;
 
+import app.meucarrinho.application.accounts.AccountLookupService;
 import app.meucarrinho.application.accounts.AccountService;
 import app.meucarrinho.application.capabilities.CapabilityService;
+import app.meucarrinho.application.lists.ActiveListsService;
 import app.meucarrinho.application.lists.FinishPurchaseService;
 import app.meucarrinho.application.lists.ItemService;
 import app.meucarrinho.application.lists.ListService;
@@ -46,7 +48,9 @@ public final class InMemoryCore {
             new FinishPurchaseService(listRepository, receiptBook, unitOfWork, events, ids, clock);
     public final ReceiptReuseService receiptReuse =
             new ReceiptReuseService(listRepository, receiptBook, unitOfWork, events, ids, clock);
+    public final ActiveListsService activeLists = new ActiveListsService(listQueries);
     public final ReceiptQueryService receipts = new ReceiptQueryService(receiptRepository);
     public final AccountService accounts = new AccountService(accountRepository, unitOfWork, ids, clock);
+    public final AccountLookupService accountLookup = new AccountLookupService(accountRepository);
     public final CapabilityService capabilities = new CapabilityService(flags, analytics, ids, clock);
 }

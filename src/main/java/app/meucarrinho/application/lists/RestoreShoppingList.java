@@ -7,5 +7,5 @@ import app.meucarrinho.domain.shared.ListId;
 import app.meucarrinho.domain.shared.Result;
 
 public interface RestoreShoppingList {
-    Result<ShoppingList, ListError> restore(ListId id, ActorRef actor);
+    Result<ShoppingList, ListError> restore(ListId id, ActorRef actor, long expectedVersion);
 }

@@ -9,5 +9,6 @@ import app.meucarrinho.domain.shared.Result;
 import java.util.Optional;
 
 public interface ImportItemsFromReceipt {
-    Result<ShoppingList, ListError> importItems(ListId list, AccountId actor, Optional<ReceiptId> receipt);
+    Result<ShoppingList, ListError> importItems(ListId list, AccountId actor, long expectedVersion,
+            Optional<ReceiptId> receipt);
 }

@@ -45,6 +45,8 @@ dependencies {
     testImplementation(libs.archunit)
     testImplementation(libs.jqwik)
     testImplementation(libs.jackson.databind)
+    // Spring context tests of the bootstrap wiring on the in-memory fakes; no Docker (ADR 0007).
+    testImplementation(libs.spring.boot.starter.test)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

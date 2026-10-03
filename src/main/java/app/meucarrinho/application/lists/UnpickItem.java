@@ -8,5 +8,5 @@ import app.meucarrinho.domain.shared.ListId;
 import app.meucarrinho.domain.shared.Result;
 
 public interface UnpickItem {
-    Result<ShoppingList, ListError> unpick(ListId list, ActorRef actor, ItemId itemId);
+    Result<ShoppingList, ListError> unpick(ListId list, ActorRef actor, long expectedVersion, ItemId itemId);
 }

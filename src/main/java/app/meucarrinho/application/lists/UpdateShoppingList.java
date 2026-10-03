@@ -8,5 +8,5 @@ import app.meucarrinho.domain.shared.ListId;
 import app.meucarrinho.domain.shared.Result;
 
 public interface UpdateShoppingList {
-    Result<ShoppingList, ListError> update(ListId id, ActorRef actor, ListDetailsChange change);
+    Result<ShoppingList, ListError> update(ListId id, ActorRef actor, long expectedVersion, ListDetailsChange change);
 }

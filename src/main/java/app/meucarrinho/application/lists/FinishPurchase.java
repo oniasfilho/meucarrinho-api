@@ -9,5 +9,5 @@ import app.meucarrinho.domain.shared.Result;
 import java.util.Optional;
 
 public interface FinishPurchase {
-    Result<Receipt, ListError> finish(ListId list, ActorRef actor, Optional<ReceiptId> receiptId);
+    Result<Receipt, ListError> finish(ListId list, ActorRef actor, long expectedVersion, Optional<ReceiptId> receiptId);
 }
