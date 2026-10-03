@@ -31,6 +31,8 @@ dependencies {
     implementation(libs.spring.data.jdbc)
     implementation(libs.spring.boot.starter.flyway)
     implementation(libs.flyway.postgresql)
+    // The outbox for domain events (spec §4, §13); without it events never reach event_publication.
+    implementation(libs.spring.modulith.starter.jdbc)
     runtimeOnly(libs.postgresql)
     implementation(libs.jspecify)
 
@@ -61,7 +63,6 @@ testing {
                 implementation(libs.assertj)
                 implementation(libs.spring.data.jdbc)
                 implementation(libs.spring.boot.starter.test)
-                implementation(libs.spring.modulith.starter.jdbc)
                 implementation(libs.flyway.core)
                 implementation(libs.flyway.postgresql)
                 implementation(libs.postgresql)
