@@ -14,7 +14,7 @@ backs the persistence ports.
 | 2. `SpringTransactionUnitOfWork`, Modulith outbox publisher | done | 16f8ce0 |
 | Fix: Modulith JDBC starter on the main runtime classpath | done | a93da09 |
 | 3a. If-Match in use cases, `ListActiveLists`, `GetAccount`, core wiring | done | 690ac6a |
-| 3b-1. REST surface, If-Match parsing, `/swagger-ui` | in progress | |
+| 3b-1. REST surface, If-Match parsing, `/swagger-ui` | done | `feat(api)` after 5b2bffa |
 | 3b-2. Idempotency store, Redis and Postgres adapters, HTTP filter | next | |
 | 4–9. Error contract, auth, telemetry, operations, DX, handoff | not started | |
 
@@ -41,7 +41,9 @@ From the session prompt:
 3. Receipts paging: `GET /v1/receipts/summary?from=&to=` maps onto `GetReceiptHistory`.
    `GET /v1/receipts?cursor=` takes an opaque cursor encoding the start month; each page
    covers a fixed window of months going back and returns `nextCursor`.
-   `GetReceiptHistory` does not change. ADR comes in 3b-1.
+   `GetReceiptHistory` does not change. See
+   [ADR 0008](docs/adr/0008-receipt-history-paging.md): 6-month windows, cursor
+   `m1:yyyy-MM` in base64url, paging stops at 2026-01.
 4. Idempotency:
    - A new `IdempotencyStore` port in `application.common.port`, with a fake and a
      contract suite.
@@ -103,6 +105,22 @@ For step 3b:
   (quick-add) or structured fields, never both.
 - **Dependencies approved:** Spring MVC starter, validation starter, springdoc-openapi,
   Spring Data Redis (Lettuce), Testcontainers support for Redis/Valkey.
+
+Built in 3b-1 (all conventions in [ADR 0009](docs/adr/0009-rest-conventions.md)):
+
+- `api.rest.lists` (`ListsApi`, `ItemsApi`, `ShopAgainApi`), `api.rest.receipts`
+  (`ReceiptsApi`) and `api.rest.me` (`MeApi`). Shared pieces live in `api.rest`:
+  `ApiProblem`, `ApiErrors` (the error-to-code table), `ApiExceptionHandler`,
+  `Revisions` (If-Match and ETag), `Patch<T>` (three-state PATCH fields), `Fields`, DTOs.
+- `bootstrap.ApiConfiguration` provides the `CurrentActor` that answers 401 (replace it in
+  step 5) and an `InstantSource` over the core's `Clock`.
+- `springdoc.swagger-ui.path=/swagger-ui`, so the quick-start URL from §14 works.
+- **Web tests** extend `api.rest.RestTest`:
+  - It boots `@InMemoryApplicationTest`: the app on the fakes, one cached context, no
+    Docker.
+  - `signIn(name)` provisions an account and makes it the caller.
+  - `client(Api.class)` returns the typed client; `http` is a `MockMvcTester`.
+  - The context is shared, so a test must never assume empty stores.
 
 ## Open questions for later steps
 

@@ -28,6 +28,10 @@ dependencies {
     testImplementation(bom)
 
     implementation(libs.spring.boot.starter)
+    // REST surface (spec §7): @HttpExchange API interfaces, Bean Validation on DTOs, /swagger-ui (§14).
+    implementation(libs.spring.boot.starter.webmvc)
+    implementation(libs.spring.boot.starter.validation)
+    implementation(libs.springdoc.webmvc.ui)
     implementation(libs.spring.data.jdbc)
     implementation(libs.spring.boot.starter.flyway)
     implementation(libs.flyway.postgresql)

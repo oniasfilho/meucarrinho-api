@@ -15,6 +15,11 @@ spring:
         schema-initialization:
           enabled: false
 
+springdoc:
+  swagger-ui:
+    # The quick start opens http://localhost:8080/swagger-ui (spec §14).
+    path: /swagger-ui
+
 carrinho:
   adapters:
     persistence: postgres

@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Bean;
  * unit of work by {@link InMemoryCore}. Clock and IdGenerator stay the real ones from {@link CoreConfiguration}.
  */
 @TestConfiguration(proxyBeanMethods = false)
-class InMemoryPortsConfiguration {
+public class InMemoryPortsConfiguration {
     @Bean
     InMemoryCore inMemoryCore() {
         return new InMemoryCore();

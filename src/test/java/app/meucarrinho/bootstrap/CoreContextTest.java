@@ -32,22 +32,10 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Import;
 
-/**
- * Boots the real application class on the testFixtures fakes: wiring and adapter selection, no Docker. Without a
- * DataSource the JDBC outbox has nothing to write to, so its auto-configuration is off too; the recording publisher
- * stands in for it.
- */
-@SpringBootTest(classes = MeuCarrinhoApplication.class, properties = {
-        "carrinho.adapters.persistence=memory",
-        "spring.autoconfigure.exclude="
-                + "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,"
-                + "org.springframework.modulith.events.jdbc.JdbcEventPublicationAutoConfiguration,"
-                + "org.springframework.modulith.events.config.EventPublicationAutoConfiguration"})
-@Import(InMemoryPortsConfiguration.class)
+/** The application class boots on the testFixtures fakes and every input port is wired exactly once. */
+@InMemoryApplicationTest
 class CoreContextTest {
     @Autowired
     private ApplicationContext context;
@@ -98,6 +86,7 @@ class CoreContextTest {
         assertThat(context.getBean(GetReceipt.class).get(receipt.id(), marina.id()).orElseThrow()).isEqualTo(receipt);
         assertThat(receipt.completedAt()).isCloseTo(Instant.now(), within(1, ChronoUnit.MINUTES));
         assertThat(context.getBean(ListActiveLists.class).activeLists(marina.id())).isEmpty();
-        assertThat(fakes.events.published(DomainEvent.PurchaseFinished.class)).hasSize(1);
+        assertThat(fakes.events.published(DomainEvent.PurchaseFinished.class))
+                .filteredOn(event -> event.listId().equals(receipt.listId())).hasSize(1);
     }
 }
