@@ -17,9 +17,10 @@ backs the persistence ports.
 | 3b-1. REST surface, If-Match parsing, `/swagger-ui` | done | d322179 |
 | 3b-2. Idempotency store, Redis and Postgres adapters, HTTP filter | done | 395dd9e |
 | DX. Local sign-in (mock-oauth2), `PUT /v1/me`, demo seed, `make run`/`token`, Postman | done (ahead of steps 5 and 8) | `feat(dx)` after ac11866 |
-| 4–9. Error contract, auth, telemetry, operations, DX, handoff | not started | |
+| 4. Error contract: requestId, traceId, catch-all 500, hostile-input test, OpenAPI carryover | done | (uncommitted) |
+| 5–9. Auth, telemetry, operations, DX, handoff | not started | |
 
-**Resume at session 2, step 4 (error contract).** Steps 5 and 8 are partly done; see
+**Resume at session 2, step 5 (auth).** Steps 5 and 8 are partly done; see
 [ADR 0011](docs/adr/0011-local-sign-in-and-demo-data.md) for what they still owe. Session 3 starts only after
 step 9.
 
@@ -152,8 +153,23 @@ Built in 3b-2 (all decisions in [ADR 0010](docs/adr/0010-idempotency-keys.md)):
   filter claims `(account, Idempotency-Key)` before the use case runs and stores the 2xx
   response. The retry, with the same fingerprint, gets that response replayed and never
   reaches `QuickAddItem`. `IdempotencyFilterTest` shows it.
-- **Step 4 must add** the `Idempotency-Key` header and the three codes above to the
-  OpenAPI document.
+- **Step 4 adds** the `Idempotency-Key` header and the three codes above to the OpenAPI
+  document (below).
+
+Built in step 4 (see [ADR 0012](docs/adr/0012-error-contract-shape.md)):
+
+- **Correlation.** `bootstrap.RequestCorrelationFilter` runs first in the chain and mints
+  or echoes `X-Request-Id` into `api.rest.RequestCorrelation`; `ApiExceptionHandler` adds
+  `requestId` and a minted `traceId` (no real tracer until step 6) to every problem.
+- **Catch-all.** `ApiExceptionHandler.internal` turns anything unmapped into a bare
+  `500 INTERNAL` and logs the exception with its stack trace; nothing unmapped reaches the
+  body.
+- **OpenAPI.** `IdempotencyConfiguration.idempotencyOpenApiCustomizer` documents
+  `Idempotency-Key` and its three codes on every mutating `/v1` operation in the live
+  `/v3/api-docs`; the static `openapi/carrinho-v1.yaml` export is still later work.
+- **Tests.** `HostileInputTest` drives every operation with a malformed body and a
+  hostile path segment, asserting a clean `400` with no stack trace, SQL keyword or
+  package name; a hostile value sent as a legitimate field round-trips as plain text.
 
 Built for hands-on testing, ahead of steps 5 and 8 (see
 [ADR 0011](docs/adr/0011-local-sign-in-and-demo-data.md)):
@@ -178,6 +194,9 @@ Built for hands-on testing, ahead of steps 5 and 8 (see
 
 ## Open questions for later steps
 
+- **Rate limiting and body/batch limits** (spec §13 Limits) need Bucket4j and Redis-backed
+  buckets that do not exist yet. The user scoped step 4 to the Problem Details shape only
+  (ADR 0012); pick a step for 429/413/415 and the real timeout/retry table.
 - **Step 5.** The Notion checkpoint expects "another user's list gets 403 NOT_A_MEMBER".
   But `ListAccessPolicy` (session 1, tested by `ShoppingListTest`) answers strangers with
   `ListNotFound`, so they cannot tell a hidden list from a missing one, and ADR 0006

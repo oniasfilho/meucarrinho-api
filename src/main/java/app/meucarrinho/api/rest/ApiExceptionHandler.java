@@ -4,6 +4,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -15,12 +17,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
- * Turns every failure the controllers know about into Problem Details with a stable {@code code}. This is the
- * minimal version from step 3b; step 4 grows it into the full spec §13 contract.
+ * Turns every failure into Problem Details with a stable {@code code}, a {@code requestId} and a {@code traceId}
+ * (spec §13). Nothing unmapped ever reaches the body: it becomes a bare {@code 500 INTERNAL}, with the exception
+ * logged with its stack trace instead.
  */
 @RestControllerAdvice
 class ApiExceptionHandler {
     private static final String PROBLEMS = "https://api.meucarrinho.app/problems/";
+    private static final Logger LOG = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(ApiProblem.class)
     ResponseEntity<ProblemDetail> problem(ApiProblem problem) {
@@ -43,12 +47,21 @@ class ApiExceptionHandler {
         return render(ApiProblem.malformed("The request could not be read."));
     }
 
+    @ExceptionHandler(Exception.class)
+    ResponseEntity<ProblemDetail> internal(Exception e) {
+        LOG.error("Unhandled exception", e);
+        return render(ApiProblem.internal());
+    }
+
     private static ResponseEntity<ProblemDetail> render(ApiProblem problem) {
         ProblemDetail detail = ProblemDetail.forStatus(problem.status());
         detail.setType(URI.create(PROBLEMS + problem.code().toLowerCase(Locale.ROOT).replace('_', '-')));
         detail.setTitle(title(problem.code()));
         detail.setProperty("code", problem.code());
         detail.setProperty("message", problem.getMessage());
+        RequestCorrelation correlation = RequestCorrelation.current();
+        detail.setProperty("requestId", correlation.requestId());
+        detail.setProperty("traceId", correlation.traceId());
         problem.properties().forEach(detail::setProperty);
         return ResponseEntity.status(problem.status()).body(detail);
     }

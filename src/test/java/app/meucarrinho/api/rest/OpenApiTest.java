@@ -25,4 +25,16 @@ class OpenApiTest extends RestTest {
                 .hasRedirectedUrl("/swagger-ui/index.html");
         assertThat(http.get().uri("/swagger-ui/index.html")).hasStatus(HttpStatus.OK);
     }
+
+    @Test
+    void a_mutating_operation_documents_the_idempotency_key_header_and_its_codes() {
+        assertThat(http.get().uri("/v3/api-docs")).hasStatusOk().bodyJson().satisfies(body -> {
+            assertThat(body).extractingPath("$.paths['/v1/lists'].post.parameters[?(@.name=='Idempotency-Key')]")
+                    .asArray().hasSize(1);
+            assertThat(body).extractingPath("$.paths['/v1/lists'].post.responses").asMap()
+                    .containsKeys("409", "503");
+            assertThat(body).extractingPath("$.paths['/v1/lists'].get.parameters[?(@.name=='Idempotency-Key')]")
+                    .asArray().isEmpty();
+        });
+    }
 }

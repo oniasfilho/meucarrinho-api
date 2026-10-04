@@ -7,8 +7,8 @@ import org.springframework.http.HttpStatus;
 
 /**
  * A failure the API reports with a stable {@code code} (spec §13). Controllers throw it and
- * {@link ApiExceptionHandler} renders it; step 4 adds {@code requestId}, {@code traceId} and the full field-error
- * contract around it. It carries no stack trace: it is an answer, not a bug.
+ * {@link ApiExceptionHandler} renders it with {@code requestId} and {@code traceId} around it. It carries no stack
+ * trace: it is an answer, not a bug.
  */
 public final class ApiProblem extends RuntimeException {
     private static final long serialVersionUID = 1L;
@@ -34,6 +34,10 @@ public final class ApiProblem extends RuntimeException {
 
     public static ApiProblem unauthenticated() {
         return new ApiProblem(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Sign in to use this endpoint.");
+    }
+
+    public static ApiProblem internal() {
+        return new ApiProblem(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL", "Something went wrong.");
     }
 
     public static ApiProblem preconditionRequired() {
